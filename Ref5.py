@@ -9,9 +9,11 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 from textwrap import wrap
 np.random.seed(1234)
+import scipy.misc
 
 
-STAGE1_TRAIN = "../input/stage1_train"
+
+STAGE1_TRAIN = "input/stage1_train"
 STAGE1_TRAIN_IMAGE_PATTERN = "%s/{}/images/{}.png" % STAGE1_TRAIN
 STAGE1_TRAIN_MASK_PATTERN = "%s/{}/masks/*.png" % STAGE1_TRAIN
 IMAGE_ID = "image_id"
@@ -22,7 +24,7 @@ HSV_DOMINANT = "hsv_dominant"
 TOTAL_MASK = "total_masks"
 
 
-def image_ids_in(root_dir, ignore=[]):
+def image_ids_in(root_dir, ignore=['.DS_Store']):
     ids = []
     for id in os.listdir(root_dir):
         if id in ignore:
@@ -102,7 +104,7 @@ trainPD[HSV_CLUSTER] = clusters
 trainPD.head()
 
 
-def plot_images(images, images_rows, images_cols):
+def plot_images(images, images_rows, images_cols, imname):
     f, axarr = plt.subplots(images_rows,images_cols,figsize=(16,images_rows*2))
     for row in range(images_rows):
         for col in range(images_cols):
@@ -113,6 +115,7 @@ def plot_images(images, images_rows, images_cols):
             ax.axis('off')
             ax.set_title("%dx%d"%(width, height))
             ax.imshow(image)
+    f.savefig(imname)
 
 
 plot_images(trainPD[trainPD[HSV_CLUSTER] == 0][IMAGE_ID].values, 6, 8)
@@ -132,7 +135,7 @@ f, ax = plt.subplots(1,1,figsize=(16,5))
 r = trainPD.plot(kind="hist", bins=300, y = TOTAL_MASK, ax=ax, grid=True, title="Masks Histogram")
 
 
-def plot_image_masks(image, labels, num_masks, image_id):
+def plot_image_masks(image, imname, labels, num_masks, image_id):
     f, ax = plt.subplots(1,3,figsize=(16,5))
     d = ax[0].axis('off')
     d = ax[0].imshow(image)
@@ -144,12 +147,13 @@ def plot_image_masks(image, labels, num_masks, image_id):
     d = ax[2].imshow(image)
     d = ax[2].imshow(labels, alpha=0.5)
     d = ax[2].set_title("both")
+    f.savefig(imname)
 
 
 
-def display_image_masks(image_id):
+def display_image_masks(image_id, imname):
     image, labels, num_masks = read_image_labels(image_id)
-    plot_image_masks(image, labels, num_masks, image_id)
+    plot_image_masks(image, imname, labels, num_masks, image_id)
 
 
 display_image_masks("8f27ebc74164eddfe989a98a754dcf5a9c85ef599a1321de24bcf097df1814ca")
