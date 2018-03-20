@@ -118,6 +118,7 @@ def plot_images(images, images_rows, images_cols, imname):
     f.savefig(imname)
 
 
+
 plot_images(trainPD[trainPD[HSV_CLUSTER] == 0][IMAGE_ID].values, 6, 8)
 
 
