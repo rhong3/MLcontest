@@ -14,20 +14,20 @@ import os
 import shutil
 
 
-file = pd.read_csv('input/stage1_train_support/trainset_summary.csv', header=0)
+file = pd.read_csv('input/stage1_test_support/testset_summary.csv', header=0)
 
-os.mkdir('input/stage1_train/fluorescence')
-os.mkdir('input/stage1_train/histology')
-os.mkdir('input/stage1_train/light')
+os.mkdir('input/stage_1_test/fluorescence')
+os.mkdir('input/stage_1_test/histology')
+os.mkdir('input/stage_1_test/light')
 
 
 for index, row in file.iterrows():
     if row['hsv_cluster'] == 0:
         name = str(row['image_id'])
-        shutil.copytree('input/stage1_train/'+name, 'input/stage1_train/fluorescence/'+name)
+        shutil.copytree('input/stage1_test/'+name, 'input/stage_1_test/fluorescence/'+name)
     if row['hsv_cluster'] == 1:
         name = str(row['image_id'])
-        shutil.copytree('input/stage1_train/'+name, 'input/stage1_train/histology/'+name)
+        shutil.copytree('input/stage1_test/'+name, 'input/stage_1_test/histology/'+name)
     if row['hsv_cluster'] == 2:
         name = str(row['image_id'])
-        shutil.copytree('input/stage1_train/'+name, 'input/stage1_train/light/'+name)
+        shutil.copytree('input/stage1_test/'+name, 'input/stage_1_test/light/'+name)
