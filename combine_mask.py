@@ -1,0 +1,60 @@
+import numpy as np # linear algebra
+import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
+import matplotlib.pyplot as plt
+import seaborn as sns
+import skimage.io
+import os
+import shutil
+from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans
+from textwrap import wrap
+np.random.seed(1234)
+import scipy.misc
+import matplotlib.cm as cm
+
+
+STAGE1_TRAIN = "input/stage_1_train/light"
+STAGE1_TRAIN_IMAGE_PATTERN = "%s/{}/images/{}.png" % STAGE1_TRAIN
+STAGE1_TRAIN_MASK_PATTERN = "%s/{}/masks/*.png" % STAGE1_TRAIN
+
+
+def image_ids_in(root_dir, ignore=['.DS_Store', 'trainset_summary.csv', 'stage1_train_labels.csv']):
+    ids = []
+    for id in os.listdir(root_dir):
+        if id in ignore:
+            print('Skipping ID:', id)
+        else:
+            ids.append(id)
+    return ids
+
+
+def read_image(image_id, space="rgb"):
+    print(image_id)
+    image_file = STAGE1_TRAIN_IMAGE_PATTERN.format(image_id, image_id)
+    image = skimage.io.imread(image_file)
+    # Drop alpha which is not used
+    image = image[:, :, :3]
+    if space == "hsv":
+        image = skimage.color.rgb2hsv(image)
+    return image
+
+# Get image width, height and count masks available.
+def read_image_labels(image_id, space="rgb"):
+    image = read_image(image_id, space = space)
+    mask_file = STAGE1_TRAIN_MASK_PATTERN.format(image_id)
+    masks = skimage.io.imread_collection(mask_file).concatenate()
+    height, width, _ = image.shape
+    num_masks = masks.shape[0]
+    labels = np.zeros((height, width), np.uint16)
+    for index in range(0, num_masks):
+        labels[masks[index] > 0] = 1
+    os.mkdir(STAGE1_TRAIN+'/'+image_id+'/label')
+    plt.imsave(STAGE1_TRAIN+'/'+image_id+'/label/Combined.png', labels, cmap=cm.gray)
+    return labels
+
+
+train_image_ids = image_ids_in(STAGE1_TRAIN)
+
+for im in train_image_ids:
+    read_image_labels(im)
+

@@ -24,7 +24,7 @@ HSV_DOMINANT = "hsv_dominant"
 TOTAL_MASK = "total_masks"
 
 
-def image_ids_in(root_dir, ignore=['.DS_Store']):
+def image_ids_in(root_dir, ignore=['.DS_Store', 'trainset_summary.csv', 'stage1_train_labels.csv']):
     ids = []
     for id in os.listdir(root_dir):
         if id in ignore:
@@ -35,6 +35,7 @@ def image_ids_in(root_dir, ignore=['.DS_Store']):
 
 
 def read_image(image_id, space="rgb"):
+
     image_file = STAGE1_TRAIN_IMAGE_PATTERN.format(image_id, image_id)
     image = skimage.io.imread(image_file)
     # Drop alpha which is not used
