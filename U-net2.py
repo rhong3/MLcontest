@@ -98,7 +98,7 @@ class UNet(torch.nn.Module):
         return x
 
 if __name__ == '__main__':
-    net = UNet().cuda()
+    net = UNet()
     print(net)
 
     test_x = Variable(torch.FloatTensor(1, 3, 1024, 1024))

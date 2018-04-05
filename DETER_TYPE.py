@@ -1,19 +1,26 @@
 import numpy as np # linear algebra
 import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
-import matplotlib.pyplot as plt
-import seaborn as sns
 import skimage.io
 import os
-import shutil
-from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
-from textwrap import wrap
 np.random.seed(1234)
-import scipy.misc
 
 
-STAGE1_TRAIN = "input/stage1_test"
+STAGE1_TRAIN = "../inputs/stage_1_train"
 STAGE1_TRAIN_IMAGE_PATTERN = "%s/{}/images/{}.png" % STAGE1_TRAIN
+
+
+
+def image_ids_in(root_dir, ignore=['.DS_Store', 'summary.csv', 'stage1_train_labels.csv']):
+    ids = []
+    for id in os.listdir(root_dir):
+        if id in ignore:
+            print('Skipping ID:', id)
+        else:
+            ids.append(id)
+    return ids
+
+
 
 def get_domimant_colors(img, top_colors=2):
     img_l = img.reshape((img.shape[0] * img.shape[1], img.shape[2]))
@@ -27,6 +34,7 @@ def get_domimant_colors(img, top_colors=2):
     hist = hist.astype("float")
     hist /= hist.sum()
     return clt.cluster_centers_, hist
+
 
 def deter_image(image_path, space="hsv"):
     image = skimage.io.imread(image_path)
@@ -44,8 +52,8 @@ def deter_image(image_path, space="hsv"):
             type = 'Light'
     else:
         type = 'histology'
-    return type
+    return type, image_path, image
 
 
-t = deter_image('input/stage_1_train/light/8d05fb18ee0cda107d56735cafa6197a31884e0a5092dc6d41760fb92ae23ab4/images/8d05fb18ee0cda107d56735cafa6197a31884e0a5092dc6d41760fb92ae23ab4.png')
-print(t)
+t, p, I = deter_image('../inputs/stage_1_train/8d05fb18ee0cda107d56735cafa6197a31884e0a5092dc6d41760fb92ae23ab4/images/8d05fb18ee0cda107d56735cafa6197a31884e0a5092dc6d41760fb92ae23ab4.png')
+print(t, p)

@@ -11,14 +11,16 @@ from textwrap import wrap
 np.random.seed(1234)
 import scipy.misc
 import matplotlib.cm as cm
+from imageio import imread
 
 
-STAGE1_TRAIN = "input/stage_1_train/light"
+
+STAGE1_TRAIN = "input/stage_1_train"
 STAGE1_TRAIN_IMAGE_PATTERN = "%s/{}/images/{}.png" % STAGE1_TRAIN
 STAGE1_TRAIN_MASK_PATTERN = "%s/{}/masks/*.png" % STAGE1_TRAIN
 
 
-def image_ids_in(root_dir, ignore=['.DS_Store', 'trainset_summary.csv', 'stage1_train_labels.csv']):
+def image_ids_in(root_dir, ignore=['.DS_Store', 'summary.csv', 'stage1_train_labels.csv']):
     ids = []
     for id in os.listdir(root_dir):
         if id in ignore:
@@ -48,8 +50,13 @@ def read_image_labels(image_id, space="rgb"):
     labels = np.zeros((height, width), np.uint16)
     for index in range(0, num_masks):
         labels[masks[index] > 0] = 1
-    os.mkdir(STAGE1_TRAIN+'/'+image_id+'/label')
-    plt.imsave(STAGE1_TRAIN+'/'+image_id+'/label/Combined.png', labels, cmap=cm.gray)
+    try:
+        os.mkdir(STAGE1_TRAIN+'/'+image_id+'/label')
+    except:
+        pass
+    scipy.misc.imsave(STAGE1_TRAIN+'/'+image_id+'/label/Combined.png', labels)
+    a = imread(STAGE1_TRAIN+'/'+image_id+'/label/Combined.png')
+    print(a.shape)
     return labels
 
 
