@@ -58,6 +58,7 @@ def read_lite(summary, mode, root, root_IMAGE_PATTERN, root_IMAGEPAD_PATTERN, ro
     return df
 
 
+
 train = pd.read_csv('../inputs/stage_1_train/summary.csv', header = 0)
 trsample = read_lite(train, 'train', ROOT, ROOT_IMAGE_PATTERN, ROOT_IMAGEPAD_PATTERN, ROOT_LABEL_PATTERN, ROOT_LABELPAD_PATTERN)
 trsample.to_csv('../inputs/stage_1_train/samples.csv', index = False, header = True)

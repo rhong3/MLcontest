@@ -24,6 +24,7 @@ HSV_DOMINANT = "hsv_dominant"
 TOTAL_MASK = "total_masks"
 
 
+
 def image_ids_in(root_dir, ignore=['.DS_Store', 'trainset_summary.csv', 'stage1_train_labels.csv']):
     ids = []
     for id in os.listdir(root_dir):

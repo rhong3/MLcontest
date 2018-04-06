@@ -30,6 +30,7 @@ def image_ids_in(root_dir, ignore=['.DS_Store', 'summary.csv', 'stage1_train_lab
     return ids
 
 
+
 def read_image(image_id, space="rgb"):
     print(image_id)
     image_file = STAGE1_TRAIN_IMAGE_PATTERN.format(image_id, image_id)
