@@ -13,7 +13,7 @@ import scipy.misc
 
 
 
-STAGE1_TRAIN = "input/stage1_test"
+STAGE1_TRAIN = "input1/stage_1_test"
 STAGE1_TRAIN_IMAGE_PATTERN = "%s/{}/images/{}.png" % STAGE1_TRAIN
 STAGE1_TRAIN_MASK_PATTERN = "%s/{}/masks/*.png" % STAGE1_TRAIN
 IMAGE_ID = "image_id"

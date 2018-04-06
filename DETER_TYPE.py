@@ -5,13 +5,20 @@ import os
 from sklearn.cluster import KMeans
 np.random.seed(1234)
 
+ROOT = "inputs/stage_1_train"
+ROOT_IMAGE_PATTERN = "%s/{}/images/{}.png" % ROOT
+ROOT_IMAGEPAD_PATTERN = "%s/{}/images/{}_pad.png" % ROOT
+ROOT_LABEL_PATTERN = "%s/{}/label/Combined.png" % ROOT
+ROOT_LABELPAD_PATTERN = "%s/{}/label/Combined_pad.png" % ROOT
+ROOTT = "inputs/stage_1_test"
+ROOTT_IMAGE_PATTERN = "%s/{}/images/{}.png" % ROOTT
+ROOTT_IMAGEPAD_PATTERN = "%s/{}/images/{}_pad.png" % ROOTT
+ROOTT_LABEL_PATTERN = "%s/{}/label/Combined.png" % ROOT
+ROOTT_LABELPAD_PATTERN = "%s/{}/label/Combined_pad.png" % ROOTT
 
-STAGE1_TRAIN = "../inputs/stage_1_train"
-STAGE1_TRAIN_IMAGE_PATTERN = "%s/{}/images/{}.png" % STAGE1_TRAIN
 
-
-
-def image_ids_in(root_dir, ignore=['.DS_Store', 'summary.csv', 'stage1_train_labels.csv']):
+###########################################################################################
+def image_ids_in(root_dir, ignore=['.DS_Store', 'samples.csv','summary.csv', 'stage1_train_labels.csv', 'stage1_test_labels.csv', 'stage2_test_labels.csv']):
     ids = []
     for id in os.listdir(root_dir):
         if id in ignore:
@@ -40,6 +47,8 @@ def deter_image(image_path, space="hsv"):
     image = skimage.io.imread(image_path)
     # Drop alpha which is not used
     image = image[:, :, :3]
+    H, W, L = image.shape
+
     if space == "hsv":
         image = skimage.color.rgb2hsv(image)
     dominant_colors_hsv, dominant_rates_hsv = get_domimant_colors(image, top_colors=1)
@@ -47,13 +56,33 @@ def deter_image(image_path, space="hsv"):
     a = dominant_colors_hsv.squeeze()
     if a[0] == 0 and a[1] == 0:
         if a[2] < 0.5:
-            type = 'Fluorescence'
+            type = 'fluorescence'
         else:
-            type = 'Light'
+            type = 'light'
     else:
         type = 'histology'
-    return type, image_path, image
+    return type, H, W, L
 
 
-t, p, I = deter_image('../inputs/stage_1_train/8d05fb18ee0cda107d56735cafa6197a31884e0a5092dc6d41760fb92ae23ab4/images/8d05fb18ee0cda107d56735cafa6197a31884e0a5092dc6d41760fb92ae23ab4.png')
-print(t, p)
+def read(root, root_IMAGE_PATTERN, root_IMAGEPAD_PATTERN, root_LABEL_PATTERN, root_LABELPAD_PATTERN):
+    ids = image_ids_in(root)
+    sample = []
+    for id in ids:
+        ls = []
+        image_path = root_IMAGE_PATTERN.format(id, id)
+        Type, H, W, L = deter_image(image_path)
+        if H != W:
+            image_path = root_IMAGEPAD_PATTERN.format(id, id)
+            label_path = root_LABELPAD_PATTERN.format(id)
+
+        else:
+            label_path = root_LABEL_PATTERN.format(id)
+        ls.append(Type)
+        ls.append(image_path)
+        ls.append(label_path)
+        sample.append(ls)
+    df = pd.DataFrame(np.array(sample), columns=['Type', 'Image', 'Label'])
+    print(df)
+    return df
+
+# a = read(ROOT, ROOT_IMAGE_PATTERN, ROOT_IMAGEPAD_PATTERN, ROOT_LABEL_PATTERN, ROOT_LABELPAD_PATTERN)
