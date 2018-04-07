@@ -1,16 +1,15 @@
 import numpy as np # linear algebra
 import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
-import skimage.io
-import os
-from sklearn.cluster import KMeans
 np.random.seed(1234)
 import torch
 from torch.autograd import Variable
 from imageio import imread
 from torch.nn import functional as F
 from torch.nn import init
-from torch.utils.data import DataLoader
 
+
+# Use cuda or not
+USE_CUDA = 1
 
 class UNet_down_block(torch.nn.Module):
     def __init__(self, input_channel, output_channel, down_size):
@@ -120,60 +119,112 @@ def init_weights(module):
     for name, param in module.named_parameters():
         if name.find('weight') != -1:
             if len(param.size()) == 1:
-                init.uniform(param.data, 1)
+                Cuda(init.uniform(param.data, 1).type(torch.DoubleTensor))
             else:
-                init.xavier_uniform(param.data)
+                Cuda(init.xavier_uniform(param.data).type(torch.DoubleTensor))
         elif name.find('bias') != -1:
-            init.constant(param.data, 0)
+            Cuda(init.constant(param.data, 0).type(torch.DoubleTensor))
+
+def Cuda(obj):
+    if USE_CUDA:
+        if isinstance(obj, tuple):
+            return tuple(cuda(o) for o in obj)
+        elif isinstance(obj, list):
+            return list(cuda(o) for o in obj)
+        elif hasattr(obj, 'cuda'):
+            return obj.cuda()
+    return obj
 
 
-def train(bs, sample, ep, ilr):
+def reader (list):
+    labellist = []
+    imlist = []
+    for index, row in list.iterrows():
+        name = row['Image']
+        im = imread(name)
+        for i in range(3):
+            im[:, :, i] = (im[:, :, i] - np.mean(im[:, :, i])) / np.std(im[:, :, i])
+        im = np.reshape(im, [3, im.shape[0], im.shape[1]])
+        imlist.append(im)
+        lname = row['Label']
+        la = imread(lname)
+        la = np.reshape(la, [1, la.shape[0], la.shape[1]])
+        labellist.append(la)
+    imlist = np.array(imlist)
+    labellist = np.array(labellist)
+    return imlist, labellist
+
+def dice_loss(y_pred, target):
+    pred_vec = y_pred.view(-1)
+    target_vec = Cuda(target.view(-1).type(torch.ByteTensor))
+    iou = np.linspace(0.5, 0.95, 10)
+    ppv = []
+    for i in iou:
+        tp = (pred_vec > 0.5) * target_vec.sum()
+        pred = pred_vec > 0.5
+        ppv.append(tp / (pred.sum() + target_vec.sum() - tp))
+    ave_ppv = np.mean(ppv)
+    return ave_ppv
+
+
+def train(bs, sample, vasample, ep, ilr):
     batch_size = bs
     grad_accu_times = 8
     init_lr = ilr
-    img_csv_file = 'train_masks.csv'
-    train_img_dir = 'train'
-    train_mask_dir = 'train_masks_png'
-    model = UNet().cuda()
+    # img_csv_file = 'train_masks.csv'
+    # train_img_dir = 'train'
+    # train_mask_dir = 'train_masks_png'
+
+    model = Cuda(UNet())
     init_weights(model)
     loss_fn = torch.nn.BCEWithLogitsLoss(size_average=True)
     opt = torch.optim.RMSprop(model.parameters(), lr=init_lr)
     opt.zero_grad()
+    rows_trn = sample.shape[0]
+    batches_per_epoch = rows_trn // bs
 
-
-    epoch = 0
-    forward_times = 0
+    # forward_times = 0
     for epoch in range(ep):
-        data_loader = DataLoader(dataset, batch_size, shuffle=True, num_workers=2)
-
         lr = init_lr * (0.1 ** (epoch // 10))
+        order = np.arange(rows_trn)
+        for itr in range(batches_per_epoch):
+            rows = order[itr * bs: (itr + 1) * bs]
+            if itr + 1 == batches_per_epoch:
+                rows = order[itr * bs:]
+            # read in a batch
+            trim, trla = reader(sample.loc[rows[0]:rows[-1], :])
+            if USE_CUDA:
+                x = Cuda(Variable(torch.from_numpy(trim).type(torch.FloatTensor)))
+                y = Cuda(Variable(torch.from_numpy(trla).type(torch.FloatTensor)))
+            else:
+                x = Variable(torch.from_numpy(trim).type(torch.FloatTensor))
+                y = Variable(torch.from_numpy(trla).type(torch.FloatTensor))
+        pred_mask = model(x)
+        # vaim, vala = reader(vasample)
+        vlosslist = []
+        for itr in range(vasample.shape[0]):
+            vaim, vala = reader(vasample.loc[itr:itr,:])
+            if USE_CUDA:
+                xv = Cuda(Variable(torch.from_numpy(vaim).type(torch.FloatTensor)))
+                yv = Cuda(Variable(torch.from_numpy(vala).type(torch.FloatTensor)))
+            else:
+                xv = Variable(torch.from_numpy(vaim).type(torch.FloatTensor))
+                yv = Variable(torch.from_numpy(vala).type(torch.FloatTensor))
+            pred_maskv = model(xv)
+            vloss = loss_fn(pred_maskv, yv)
+            vloss += dice_loss(F.sigmoid(pred_maskv), yv)
+            vlosslist.append(vloss.cpu().data.numpy()[0])
+        loss = loss_fn(pred_mask, y)
+        loss += dice_loss(F.sigmoid(pred_mask), y)
+        loss.backward()
+        vlossa = np.mean(vlosslist)
+        print('Epoch {:>3} |lr {:>1.5f} | Loss {:>1.5f} | VLoss {:>1.5f} '.format(epoch + 1, lr, loss.cpu().data.numpy()[0], vlossa))
+        opt.step()
+        opt.zero_grad()
+
         for param_group in opt.param_groups:
             param_group['lr'] = lr
 
-        for idx, batch_data in enumerate(data_loader):
-
-            batch_input = Variable(batch_data['img']).cuda()
-            batch_gt_mask = Variable(batch_data['mask']).cuda()
-
-
-            pred_mask = model(batch_input)
-            forward_times += 1
-
-            if (idx+1) % 10 == 0:
-                show_example(batch_input[0], batch_gt_mask[0], F.sigmoid(pred_mask[0]))
-
-
-            loss = loss_fn(pred_mask, batch_gt_mask)
-            loss += dice_loss(F.sigmoid(pred_mask), batch_gt_mask)
-            loss.backward()
-            print('Epoch {:>3} | Batch {:>5} | lr {:>1.5f} | Loss {:>1.5f} '.format(epoch+1, idx+1, lr, loss.cpu().data.numpy()[0]))
-
-
-            if forward_times == grad_accu_times:
-                opt.step()
-                opt.zero_grad()
-                forward_times = 0
-                print('\nUpdate weights ... \n')
 
         if (epoch+1) % 5 == 0:
             checkpoint = {
@@ -181,51 +232,46 @@ def train(bs, sample, ep, ilr):
                 'state_dict': model.state_dict(),
                 'optimizer' : opt.state_dict(),
             }
-            torch.save(checkpoint, 'unet1024-{}'.format(epoch+1))
-        del data_loader
+            torch.save(checkpoint, 'unet_test-{}'.format(epoch+1))
 
 
+trsample = pd.read_csv('../inputs/stage_1_train/trsamples.csv', header = 0, usecols=['Image', 'Label'])
+vasample = pd.read_csv('../inputs/stage_1_train/vasamples.csv', header = 0, usecols=['Image', 'Label'])
+train(1, trsample, vasample, 10, 0.01)
 
 
-
-
-if __name__ == '__main__':
-    train()
-
-
-
-# Get train and test IDs
-train_ids = next(os.walk(TRAIN_PATH))[1]
-test_ids = next(os.walk(TEST_PATH))[1]
-
-# Run-length encoding stolen from https://www.kaggle.com/rakhlin/fast-run-length-encoding-python
-def rle_encoding(x):
-    dots = np.where(x.T.flatten() == 1)[0]
-    run_lengths = []
-    prev = -2
-    for b in dots:
-        if (b>prev+1): run_lengths.extend((b + 1, 0))
-        run_lengths[-1] += 1
-        prev = b
-    return run_lengths
-
-def prob_to_rles(x, cutoff=0.5):
-    lab_img = label(x > cutoff)
-    for i in range(1, lab_img.max() + 1):
-        yield rle_encoding(lab_img == i)
-
-
-new_test_ids = []
-rles = []
-for n, id_ in enumerate(test_ids):
-    rle = list(prob_to_rles(preds_test_upsampled[n]))
-    rles.extend(rle)
-    new_test_ids.extend([id_] * len(rle))
-
-
-
-# Create submission DataFrame
-sub = pd.DataFrame()
-sub['ImageId'] = new_test_ids
-sub['EncodedPixels'] = pd.Series(rles).apply(lambda x: ' '.join(str(y) for y in x))
-sub.to_csv('sub-dsbowl2018-1.csv', index=False)
+# # Get train and test IDs
+# train_ids = next(os.walk(TRAIN_PATH))[1]
+# test_ids = next(os.walk(TEST_PATH))[1]
+#
+# # Run-length encoding stolen from https://www.kaggle.com/rakhlin/fast-run-length-encoding-python
+# def rle_encoding(x):
+#     dots = np.where(x.T.flatten() == 1)[0]
+#     run_lengths = []
+#     prev = -2
+#     for b in dots:
+#         if (b>prev+1): run_lengths.extend((b + 1, 0))
+#         run_lengths[-1] += 1
+#         prev = b
+#     return run_lengths
+#
+# def prob_to_rles(x, cutoff=0.5):
+#     lab_img = label(x > cutoff)
+#     for i in range(1, lab_img.max() + 1):
+#         yield rle_encoding(lab_img == i)
+#
+#
+# new_test_ids = []
+# rles = []
+# for n, id_ in enumerate(test_ids):
+#     rle = list(prob_to_rles(preds_test_upsampled[n]))
+#     rles.extend(rle)
+#     new_test_ids.extend([id_] * len(rle))
+#
+#
+#
+# # Create submission DataFrame
+# sub = pd.DataFrame()
+# sub['ImageId'] = new_test_ids
+# sub['EncodedPixels'] = pd.Series(rles).apply(lambda x: ' '.join(str(y) for y in x))
+# sub.to_csv('sub-dsbowl2018-1.csv', index=False)

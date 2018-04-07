@@ -100,10 +100,6 @@ def train():
 
 
 
-
-if __name__ == '__main__':
-    train()
-
 # Get train and test IDs
 train_ids = next(os.walk(TRAIN_PATH))[1]
 test_ids = next(os.walk(TEST_PATH))[1]
