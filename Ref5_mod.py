@@ -13,7 +13,7 @@ import scipy.misc
 
 
 
-STAGE1_TRAIN = "input1/stage_1_test"
+STAGE1_TRAIN = "inputs/stage_2_test"
 STAGE1_TRAIN_IMAGE_PATTERN = "%s/{}/images/{}.png" % STAGE1_TRAIN
 STAGE1_TRAIN_MASK_PATTERN = "%s/{}/masks/*.png" % STAGE1_TRAIN
 IMAGE_ID = "image_id"
@@ -25,7 +25,7 @@ TOTAL_MASK = "total_masks"
 
 
 
-def image_ids_in(root_dir, ignore=['.DS_Store', 'trainset_summary.csv', 'stage1_train_labels.csv']):
+def image_ids_in(root_dir, ignore=['.DS_Store', 'trainset_summary.csv', 'stage2_train_labels.csv', 'samples.csv']):
     ids = []
     for id in os.listdir(root_dir):
         if id in ignore:
@@ -39,8 +39,13 @@ def read_image(image_id, space="rgb"):
 
     image_file = STAGE1_TRAIN_IMAGE_PATTERN.format(image_id, image_id)
     image = skimage.io.imread(image_file)
+    print(image.shape)
     # Drop alpha which is not used
-    image = image[:, :, :3]
+    if len(image.shape) != 3:
+        image = np.resize(image, (image.shape[0], image.shape[1], 3))
+    else:
+        image = image[:, :, :3]
+    print(image.shape)
     if space == "hsv":
         image = skimage.color.rgb2hsv(image)
     return image
@@ -80,6 +85,7 @@ def get_domimant_colors(img, top_colors=2):
 def get_images_details(image_ids):
     details = []
     for image_id in image_ids:
+        print(image_id)
         image_hsv, labels = read_image_labels(image_id, space="hsv")
         height, width, l = image_hsv.shape
         dominant_colors_hsv, dominant_rates_hsv = get_domimant_colors(image_hsv, top_colors=1)
@@ -103,7 +109,7 @@ clusters = kmeans.predict(X)
 trainPD[HSV_CLUSTER] = clusters
 
 
-trainPD.head()
+trainPD.to_csv(STAGE1_TRAIN+'/summary.csv', header = True, index = False)
 
 
 def plot_images(images, images_rows, images_cols, imname):

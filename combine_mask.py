@@ -15,7 +15,7 @@ from imageio import imread
 
 
 
-STAGE1_TRAIN = "input/stage_1_train"
+STAGE1_TRAIN = "inputs/stage_1_train"
 STAGE1_TRAIN_IMAGE_PATTERN = "%s/{}/images/{}.png" % STAGE1_TRAIN
 STAGE1_TRAIN_MASK_PATTERN = "%s/{}/masks/*.png" % STAGE1_TRAIN
 
@@ -55,9 +55,12 @@ def read_image_labels(image_id, space="rgb"):
         os.mkdir(STAGE1_TRAIN+'/'+image_id+'/label')
     except:
         pass
+    print(np.max(labels))
     scipy.misc.imsave(STAGE1_TRAIN+'/'+image_id+'/label/Combined.png', labels)
     a = imread(STAGE1_TRAIN+'/'+image_id+'/label/Combined.png')
-    print(a.shape)
+    a = a/255
+
+    print(np.max(a))
     return labels
 
 
