@@ -134,53 +134,59 @@ def Cuda(obj):
     return obj
 
 
-def reader (list):
+def reader (list, mode='va'):
     labellist = []
     imlist = []
     for index, row in list.iterrows():
         name = row['Image']
         im = imread(name)
-        ima = np.rot90(im)
-        imb = np.rot90(ima)
-        imc = np.rot90(imb)
-        imd = np.fliplr(im)
-        ime = np.flipud(im)
+        if mode == 'tr':
+            ima = np.rot90(im)
+            imb = np.rot90(ima)
+            imc = np.rot90(imb)
+            imd = np.fliplr(im)
+            ime = np.flipud(im)
 
         im = np.reshape(im, [3, im.shape[0], im.shape[1]])
-        ima = np.reshape(ima, [3, ima.shape[0], ima.shape[1]])
-        imb = np.reshape(imb, [3, imb.shape[0], imb.shape[1]])
-        imc = np.reshape(imc, [3, imc.shape[0], imc.shape[1]])
-        imd = np.reshape(imd, [3, imd.shape[0], imd.shape[1]])
-        ime = np.reshape(ime, [3, ime.shape[0], ime.shape[1]])
+        if mode == 'tr':
+            ima = np.reshape(ima, [3, ima.shape[0], ima.shape[1]])
+            imb = np.reshape(imb, [3, imb.shape[0], imb.shape[1]])
+            imc = np.reshape(imc, [3, imc.shape[0], imc.shape[1]])
+            imd = np.reshape(imd, [3, imd.shape[0], imd.shape[1]])
+            ime = np.reshape(ime, [3, ime.shape[0], ime.shape[1]])
 
         imlist.append(im)
-        imlist.append(ima)
-        imlist.append(imb)
-        imlist.append(imc)
-        imlist.append(imd)
-        imlist.append(ime)
+        if mode == 'tr':
+            imlist.append(ima)
+            imlist.append(imb)
+            imlist.append(imc)
+            imlist.append(imd)
+            imlist.append(ime)
 
         lname = row['Label']
         la = imread(lname)
-        laa = np.rot90(la)
-        lab = np.rot90(laa)
-        lac = np.rot90(lab)
-        lad = np.fliplr(la)
-        lae = np.flipud(la)
+        if mode == 'tr':
+            laa = np.rot90(la)
+            lab = np.rot90(laa)
+            lac = np.rot90(lab)
+            lad = np.fliplr(la)
+            lae = np.flipud(la)
 
         la = np.reshape(la, [1, la.shape[0], la.shape[1]])
-        laa = np.reshape(laa, [1, laa.shape[0], laa.shape[1]])
-        lab = np.reshape(lab, [1, lab.shape[0], lab.shape[1]])
-        lac = np.reshape(lac, [1, lac.shape[0], lac.shape[1]])
-        lad = np.reshape(lad, [1, lad.shape[0], lad.shape[1]])
-        lae = np.reshape(lae, [1, lae.shape[0], lae.shape[1]])
+        if mode == 'tr':
+            laa = np.reshape(laa, [1, laa.shape[0], laa.shape[1]])
+            lab = np.reshape(lab, [1, lab.shape[0], lab.shape[1]])
+            lac = np.reshape(lac, [1, lac.shape[0], lac.shape[1]])
+            lad = np.reshape(lad, [1, lad.shape[0], lad.shape[1]])
+            lae = np.reshape(lae, [1, lae.shape[0], lae.shape[1]])
 
         labellist.append(la)
-        labellist.append(laa)
-        labellist.append(lab)
-        labellist.append(lac)
-        labellist.append(lad)
-        labellist.append(lae)
+        if mode == 'tr':
+            labellist.append(laa)
+            labellist.append(lab)
+            labellist.append(lac)
+            labellist.append(lad)
+            labellist.append(lae)
 
 
     imlist = np.array(imlist)
@@ -228,7 +234,7 @@ def train(bs, sample, vasample, ep, ilr):
             if itr + 1 == batches_per_epoch:
                 rows = order[itr * bs:]
             # read in a batch
-            trim, trla = reader(sample.loc[rows[0]:rows[-1], :])
+            trim, trla = reader(sample.loc[rows[0]:rows[-1], :], 'tr')
             for iit in range(6):
                 trimm = trim[iit:iit+1,:,:,:]
                 trlaa = trla[iit:iit+1, :, :, :]
@@ -248,7 +254,7 @@ def train(bs, sample, vasample, ep, ilr):
 
         vlosslist = []
         for itr in range(vasample.shape[0]):
-            vaim, vala = reader(vasample.loc[itr:itr,:])
+            vaim, vala = reader(vasample.loc[itr:itr,:], 'va')
             for iit in range(1):
                 vaimm = vaim[iit:iit+1,:,:,:]
                 valaa = vala[iit:iit+1,:,:,:]
