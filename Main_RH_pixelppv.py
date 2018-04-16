@@ -283,12 +283,12 @@ def prob_to_rles(x, cutoff=0.5):
 
 
 def metric(y_pred, target):
-    pred_vec = y_pred.view(-1)
-    target_vec = Cuda(target.view(-1).type(torch.ByteTensor))
-    label = Cuda(target_vec.sum().type(torch.FloatTensor))
-    pred = pred_vec > 0.5
-    tp = Cuda((pred * target_vec).sum().type(torch.FloatTensor))
-    predicted = Cuda(pred.type(torch.FloatTensor).sum())
+    pred_vec = y_pred.view(-1).cpu().data.numpy()
+    target_vec = target.view(-1).cpu().data.numpy()
+    label = target_vec.sum()
+    pred = (pred_vec > 0.5).astype(np.uint8)
+    tp = (pred * target_vec).sum()
+    predicted = pred.sum()
     ppv = (tp+1) / (predicted + label - tp+1)
     return ppv
 
