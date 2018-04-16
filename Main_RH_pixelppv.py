@@ -282,25 +282,15 @@ def prob_to_rles(x, cutoff=0.5):
         yield rle_encoding(lab_img == i)
 
 
-def metric(y_pred, image_id, dtsource, original_size):
-    ## tp / (tp + fn) aka accuracy as approximation to ppv
-    if dtsource == 'train':
-        dirpath = '../inputs/stage_1_train/' + image_id + '/masks/'
-    elif dtsource == 'validation':
-        dirpath = '../inputs/stage_1_test/' + image_id + '/masks/'
-    masks = os.listdir(dirpath)
-    pred = back_scale(y_pred.cpu().data.numpy(), original_size)
-    pred_vec = (np.reshape(pred, (pred.shape[0]*pred.shape[1])) > 0.5).astype(np.uint8)
-    iou = np.linspace(0.5, 0.95, 10)
-    tp = np.zeros(10)
-    for i in masks:
-        im_label = imread(dirpath+i)
-        target_vec = (np.reshape(im_label, (im_label.shape[0]*im_label.shape[1]))/255).astype(np.uint8)
-        pred_iou = (pred_vec * target_vec).sum() / target_vec.sum()
-        tp += pred_iou > iou
-    ave_acc = (tp / len(masks)).mean()
-
-    return ave_acc
+def metric(y_pred, target):
+    pred_vec = y_pred.view(-1)
+    target_vec = Cuda(target.view(-1).type(torch.ByteTensor))
+    label = Cuda(target_vec.sum().type(torch.FloatTensor))
+    pred = pred_vec > 0.5
+    tp = Cuda((pred * target_vec).sum().type(torch.FloatTensor))
+    predicted = Cuda(pred.type(torch.FloatTensor).sum())
+    ppv = (tp+1) / (predicted + label - tp+1)
+    return ppv
 
 
 def train(bs, sample, vasample, ep, ilr, lr_dec):
@@ -328,7 +318,6 @@ def train(bs, sample, vasample, ep, ilr, lr_dec):
                 rows = order[itr * bs:]
             # read in a batch
             trim, trla = reader(sample.loc[rows[0]:rows[0], :], 'tr')
-            raw_shape = [(sample.loc[rows[0], 'Height'],sample.loc[rows[0], 'Width'])]
             for iit in range(6):
                 trimm = trim[iit:iit+1,:,:,:]
                 trlaa = trla[iit:iit+1, :, :, :]
@@ -342,7 +331,7 @@ def train(bs, sample, vasample, ep, ilr, lr_dec):
                 loss = loss_fn(pred_mask, y)
                 losslist.append(loss.cpu().data.numpy()[0])
                 loss.backward()
-                tr_metric = metric(F.sigmoid(pred_mask), sample.iloc[rows[0], -1], 'train', raw_shape)
+                tr_metric = metric(F.sigmoid(pred_mask), y)
                 tr_metric_list.append(tr_metric)
                 # print(tr_metric)
                 # print(tr_metric.cpu().data.numpy()[0])
@@ -352,7 +341,6 @@ def train(bs, sample, vasample, ep, ilr, lr_dec):
         vlosslist = []
         for itr in range(vasample.shape[0]):
             vaim, vala = reader(vasample.loc[itr:itr, :], 'va')
-            raw_shape = [(vasample.loc[itr, 'Height'],vasample.loc[itr, 'Width'])]
             for iit in range(1):
                 vaimm = vaim[iit:iit+1,:,:,:]
                 valaa = vala[iit:iit+1,:,:,:]
@@ -364,7 +352,7 @@ def train(bs, sample, vasample, ep, ilr, lr_dec):
                     yv = Variable(torch.from_numpy(valaa/255).type(torch.FloatTensor))
                 pred_maskv = model(xv) #.round()
                 vloss = loss_fn(pred_maskv, yv)
-                va_metric = metric(F.sigmoid(pred_maskv), vasample.iloc[itr, -1], 'validation', raw_shape)
+                va_metric = metric(F.sigmoid(pred_maskv), yv)
                 #print(va_metric)
                 #print(va_metric.cpu().data.numpy()[0])
                 va_metric_list.append(va_metric)
@@ -403,7 +391,6 @@ def train(bs, sample, vasample, ep, ilr, lr_dec):
     plt.title('Train & Validation Loss')
     plt.legend(['Train', 'Validation'], loc='upper right')
     plt.savefig('../'+output+'/loss.png')
-
     return model
 
 
@@ -434,8 +421,8 @@ def test(tesample, model, group, directory):
             xt = Cuda(Variable(torch.from_numpy(teim).type(torch.FloatTensor)))
         else:
             xt = Variable(torch.from_numpy(teim).type(torch.FloatTensor))
-        pred_mask = model(xt)
-        pred_mask = pred_mask(pred_mask > 0.5).type(torch.FloatTensor)
+        pred_mask = model(xt).round()
+        # pred_mask = pred_mask(pred_mask > 0.5).type(torch.FloatTensor)
         pred_np = pred_mask.data.cpu().numpy()
         pred_np = back_scale(pred_np, tedim)
         imsave('../'+directory + '/' +group+'/'+teid[0]+'_pred.png', pred_np)
