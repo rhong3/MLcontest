@@ -412,7 +412,7 @@ def tereader(list):
     return imlist, idlist, dimlist
 
 
-def test(tesample, model, group):
+def test(tesample, model, group, directory):
     test_ids = []
     rles = []
     for itr in range(tesample.shape[0]):
@@ -444,11 +444,11 @@ lr_decay = sys.argv[4]
 if not os.path.exists('../' + output):
     os.makedirs('../' + output)
 
-trsample = pd.read_csv('../inputs/stage_1_train/samples.csv', header = 0, usecols=['Image', 'Label', 'Width', 'Height', 'ID']])
-vasample = pd.read_csv('../inputs/stage_1_test/vsamples.csv', header = 0, usecols=['Image', 'Label', 'Width', 'Height', 'ID']])
+trsample = pd.read_csv('../inputs/stage_1_train/samples.csv', header = 0, usecols=['Image', 'Label', 'Width', 'Height', 'ID'])
+vasample = pd.read_csv('../inputs/stage_1_test/vsamples.csv', header = 0, usecols=['Image', 'Label', 'Width', 'Height', 'ID'])
 # trsample = trsample.loc[:350,:]
 # vasample = vasample.loc[:2,:]
 tebsample = pd.read_csv('../inputs/stage_2_test/samples.csv', header = 0, usecols=['Image', 'ID', 'Width', 'Height'])
 model = train(1, trsample, vasample, int(eps), float(LR), int(lr_decay))
-tebsub = test(tebsample, model, 'stage_2_test')
+tebsub = test(tebsample, model, 'stage_2_test', output)
 tebsub.to_csv('../' + output + '/stage_2_test_sub.csv', index=False)
