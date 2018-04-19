@@ -140,6 +140,7 @@ def reader (list, mode='va'):
     for index, row in list.iterrows():
         name = row['Image']
         im = imread(name)
+        im = im / im.max() * 255
         if mode == 'tr':
             ima = np.rot90(im)
             imb = np.rot90(ima)
@@ -193,6 +194,30 @@ def reader (list, mode='va'):
     labellist = np.array(labellist)
     return imlist, labellist
 
+
+def minicut(im):
+    imdim = (im.shape[1], im.shape[2])
+    minilist = []
+    num1 = int(im.shape[1]/256)
+    num2 = int(im.shape[2]/256)
+    for co in range(num1):
+        for ro in range(num2):
+            mini = im[:,co*256:(co+1)*256,ro*256:(ro+1)*256]
+            minilist.append(mini)
+    minilist = np.array(minilist)
+    return minilist, imdim
+
+def minicutraw(im):
+    imdim = (im.shape[0], im.shape[1])
+    minilist = []
+    num1 = int(im.shape[0]/256)
+    num2 = int(im.shape[1]/256)
+    for co in range(num1):
+        for ro in range(num2):
+            mini = im[co*256:(co+1)*256,ro*256:(ro+1)*256,:]
+            minilist.append(mini)
+    minilist = np.array(minilist)
+    return minilist, imdim
 
 #
 # def reader (list):
@@ -299,7 +324,7 @@ def train(bs, sample, vasample, ep, ilr, lr_dec):
     model = Cuda(UNet())
     init_weights(model)
     loss_fn = torch.nn.BCEWithLogitsLoss(size_average=True)
-    opt = torch.optim.RMSprop(model.parameters(), lr=init_lr)
+    opt = torch.optim.Adam(model.parameters(), lr=init_lr)
     opt.zero_grad()
     rows_trn = sample.shape[0]
     batches_per_epoch = rows_trn // bs
@@ -319,16 +344,36 @@ def train(bs, sample, vasample, ep, ilr, lr_dec):
             # read in a batch
             trim, trla = reader(sample.loc[rows[0]:rows[0], :], 'tr')
             for iit in range(6):
-                trimm = trim[iit:iit+1,:,:,:]
+                trimm = trim[iit,:,:,:]
                 trlaa = trla[iit:iit+1, :, :, :]
                 if USE_CUDA:
-                    x = Cuda(Variable(torch.from_numpy(trimm).type(torch.FloatTensor)))
-                    y = Cuda(Variable(torch.from_numpy(trlaa/255).type(torch.FloatTensor)))
+                    y = Cuda(Variable(torch.from_numpy(trlaa / 255).type(torch.FloatTensor)))
                 else:
-                    x = Variable(torch.from_numpy(trimm).type(torch.FloatTensor))
-                    y = Variable(torch.from_numpy(trlaa/255).type(torch.FloatTensor))
-                pred_mask = model(x) #.round()
-                loss = loss_fn(pred_mask, y)
+                    y = Variable(torch.from_numpy(trlaa / 255).type(torch.FloatTensor))
+                minitrlist, trimmdim = minicut(trimm)
+                pred_mask_list = []
+                full_pred_mask = np.zeros((1,3,trimmdim[0], trimmdim[1]))
+                for iiit in range(minitrlist.shape[0]):
+                    trimmm = minitrlist[iiit:iiit+1, :, :, :]
+                    if USE_CUDA:
+                        x = Cuda(Variable(torch.from_numpy(trimmm).type(torch.FloatTensor)))
+                    else:
+                        x = Variable(torch.from_numpy(trimmm).type(torch.FloatTensor))
+                    pred_mask = model(x) #.round()
+                    pred_mask = pred_mask.cpu().data.numpy()
+                    pred_mask_list.append(pred_mask)
+                num1 = int(trimmdim[0] / 256)
+                num2 = int(trimmdim[1] / 256)
+                a = 0
+                for co in range(num1):
+                    for ro in range(num2):
+                        full_pred_mask[:,:,co * 256:(co + 1) * 256, ro * 256:(ro + 1) * 256] = pred_mask_list[a]
+                        a += 1
+                if USE_CUDA:
+                    full_pred_mask = Cuda(Variable(torch.from_numpy(full_pred_mask).type(torch.FloatTensor)))
+                else:
+                    full_pred_mask = Variable(torch.from_numpy(full_pred_mask).type(torch.FloatTensor))
+                loss = loss_fn(full_pred_mask, y)
                 losslist.append(loss.cpu().data.numpy()[0])
                 loss.backward()
                 tr_metric = metric(F.sigmoid(pred_mask), y)
@@ -403,6 +448,7 @@ def tereader(list):
         id = row['ID']
         dim = (row['Width'], row['Height'])
         im = imread(name)
+        im = im / im.max() * 255
         im = np.reshape(im, [3, im.shape[0], im.shape[1]])
         imlist.append(im)
         idlist.append(id)
@@ -413,6 +459,8 @@ def tereader(list):
 
 
 def test(tesample, model, group, directory):
+    if not os.path.exists('../' + output + '/' + group):
+        os.makedirs('../' + output + '/' + group)
     test_ids = []
     rles = []
     for itr in range(tesample.shape[0]):
@@ -425,6 +473,7 @@ def test(tesample, model, group, directory):
         # pred_mask = pred_mask(pred_mask > 0.5).type(torch.FloatTensor)
         pred_np = pred_mask.data.cpu().numpy()
         pred_np = back_scale(pred_np, tedim)
+        pred_np = pred_np.astype(np.uint8)
         imsave('../'+directory + '/' +group+'/'+teid[0]+'_pred.png', pred_np)
         rle = list(prob_to_rles(pred_np))
         rles.extend(rle)
