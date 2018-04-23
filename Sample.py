@@ -10,12 +10,12 @@ from imageio import imread
 from sklearn.utils import shuffle
 
 
-ROOT = "inputs/stage_1_test"
+ROOT = "inputs/stage_2_test"
 # ROOT_IMAGE_PATTERN = "%s/{}/images/{}.png" % ROOT
 ROOT_IMAGEPAD_PATTERN = "%s/{}/images/{}_pad.png" % ROOT
 # ROOT_LABEL_PATTERN = "%s/{}/label/Combined.png" % ROOT
 ROOT_LABELPAD_PATTERN = "%s/{}/label/Combined_pad.png" % ROOT
-ROOTT = "../inputs/stage_1_test"
+ROOTT = "../inputs/stage_2_test"
 # ROOTT_IMAGE_PATTERN = "%s/{}/images/{}.png" % ROOTT
 ROOTT_IMAGEPAD_PATTERN = "%s/{}/images/{}_pad.png" % ROOTT
 # ROOTT_LABEL_PATTERN = "%s/{}/label/Combined.png" % ROOT
@@ -61,6 +61,6 @@ def read_lite(summary, mode, root, root_IMAGEPAD_PATTERN, root_LABELPAD_PATTERN)
 # trsample.to_csv('../inputs/stage_1_train/trsamples.csv', index = False, header = True)
 # vasample.to_csv('../inputs/stage_1_train/vasamples.csv', index = False, header = True)
 
-test = pd.read_csv('inputs/stage_1_test/summary.csv', header = 0)
+test = pd.read_csv('inputs/stage_2_test/summary.csv', header = 0)
 tesample = read_lite(test, 'train', ROOTT, ROOTT_IMAGEPAD_PATTERN, ROOTT_LABELPAD_PATTERN)
-tesample.to_csv('inputs/stage_1_test/vsamples.csv', index = False, header = True)
+tesample.to_csv('inputs/stage_2_test/samples.csv', index = False, header = True)
