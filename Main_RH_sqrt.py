@@ -278,7 +278,8 @@ def metric(y_pred, target):
 
 
 
-def train(bs, sample, vasample, ep, ilr, lr_dec=1):
+def train(bs, sample, vasample, ep, ilr):
+    lr_dec = 1
     init_lr = ilr
 
     model = Cuda(UNet())
@@ -397,14 +398,15 @@ def train(bs, sample, vasample, ep, ilr, lr_dec=1):
             }
             torch.save(checkpoint, '../' + output + '/unet-{}'.format(epoch + 1))
 
-        if losslists[-1] >= losslists[-2] and losslists[-2] >= losslists[-3] and losslists[-3] >= losslists[-4] \
-                and losslists[-4] >= losslists[-5]:
-            lr_dec = lr_dec / 10
-        elif vlosslists[-1] >= vlosslists[-2] and vlosslists[-2] >= vlosslists[-3] and vlosslists[-3] >= vlosslists[
-            -4] and losslists[-4] >= losslists[-5]:
-            lr_dec = lr_dec / 10
+        if epoch > 6:
+            if losslists[-1] >= losslists[-2] and losslists[-2] >= losslists[-3] and losslists[-3] >= losslists[-4] \
+                    and losslists[-4] >= losslists[-5]:
+                lr_dec = lr_dec / 10
+            elif vlosslists[-1] >= vlosslists[-2] and vlosslists[-2] >= vlosslists[-3] and vlosslists[-3] >= vlosslists[
+                -4] and losslists[-4] >= losslists[-5]:
+                lr_dec = lr_dec / 10
 
-        if epoch > 15:
+        if epoch > 16:
             if losslists[-1] >= losslists[-2] and losslists[-2] >= losslists[-3] and losslists[-3] >= losslists[-4] and \
                     losslists[-4] >= losslists[-5] and losslists[-5] >= losslists[-6] and losslists[-6] >= losslists[-7] \
                     and losslists[-7] >= losslists[-8] and losslists[-8] >= losslists[-9] and losslists[-9] >= losslists[-10] \
