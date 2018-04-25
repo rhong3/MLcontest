@@ -231,6 +231,15 @@ def Cuda(obj):
     return obj
 
 
+def losscp (list):
+    newlist = np.sort(list)
+    print('list',list)
+    print('nlist', newlist)
+    if np.array_equal(np.array(list), np.array(newlist)):
+        return 1
+    else:
+        return 0
+
 
 
 def back_scale(model_im, im_shape):
@@ -399,19 +408,11 @@ def train(bs, sample, vasample, ep, ilr):
             torch.save(checkpoint, '../' + output + '/unet-{}'.format(epoch + 1))
 
         if epoch > 6:
-            if losslists[-1] >= losslists[-2] and losslists[-2] >= losslists[-3] and losslists[-3] >= losslists[-4] \
-                and losslists[-4] >= losslists[-5]:
-                lr_dec = lr_dec / 10
-            elif vlosslists[-1] >= vlosslists[-2] and vlosslists[-2] >= vlosslists[-3] and vlosslists[-3] >= vlosslists[
-                -4] and losslists[-4] >= losslists[-5]:
+            if losscp(losslists[-5:]) or losscp(vlosslists[-5:]):
                 lr_dec = lr_dec / 10
 
         if epoch > 15:
-            if losslists[-1] >= losslists[-2] and losslists[-2] >= losslists[-3] and losslists[-3] >= losslists[-4] and \
-                    losslists[-4] >= losslists[-5] and losslists[-5] >= losslists[-6] and losslists[-6] >= losslists[-7] \
-                    and losslists[-7] >= losslists[-8] and losslists[-8] >= losslists[-9] and losslists[-9] >= losslists[-10] \
-                    and losslists[-10] >= losslists[-11] and losslists[-11] >= losslists[-12] and losslists[-12] >= losslists[-13] \
-                    and losslists[-13] >= losslists[-14] and losslists[-14] >= losslists[-15]:
+            if losscp(losslists[-15:]) or losscp(vlosslists[-15:]):
                 for itr in range(rows_val):
                     vaim = vasample['Image'][itr]
                     vala = vasample['Label'][itr]
@@ -424,25 +425,6 @@ def train(bs, sample, vasample, ep, ilr):
                         if not os.path.exists('../' + output + '/validation/'):
                             os.makedirs('../' + output + '/validation/')
                         imsave('../' + output + '/validation/'+ vasample['ID'][itr] + '.png', pred_np[0,0,:,:])
-                break
-            elif vlosslists[-1] >= vlosslists[-2] and vlosslists[-2] >= vlosslists[-3] and vlosslists[-3] >= vlosslists[
-                -4] and vlosslists[-4] >= vlosslists[-5] and vlosslists[-5] >= vlosslists[-6] and vlosslists[-6] >= vlosslists[-7] \
-                    and vlosslists[-7] >= vlosslists[-8] and vlosslists[-8] >= vlosslists[-9] and vlosslists[-9] >= vlosslists[-10] \
-                    and vlosslists[-10] >= vlosslists[-11] and vlosslists[-11] >= vlosslists[-12] and vlosslists[-12] >= vlosslists[-13] \
-                    and vlosslists[-13] >= vlosslists[-14]and vlosslists[-14] >= vlosslists[-15]:
-                for itr in range(rows_val):
-                    vaim = vasample['Image'][itr]
-                    vala = vasample['Label'][itr]
-                    for iit in range(1):
-                        vaimm = vaim[iit:iit + 1, :, :, :]
-                        valaa = vala[iit:iit + 1, :, :, :]
-                        xv = Cuda(Variable(torch.from_numpy(vaimm).type(torch.FloatTensor)))
-                        pred_maskv = model(xv)  # .cpu()
-                        pred_np = (F.sigmoid(pred_maskv) > 0.5).cpu().data.numpy().astype(np.uint8) * 255
-                        if not os.path.exists('../' + output + '/validation/'):
-                            os.makedirs('../' + output + '/validation/')
-                        imsave('../' + output + '/validation/'+ vasample['ID'][itr] + '.png', pred_np[0,0,:,:])
-
                 break
 
     # Loss figures
