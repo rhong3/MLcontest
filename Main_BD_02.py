@@ -306,9 +306,9 @@ def train(bs, sample, vasample, ep, ilr):
     rows_val = len(vasample['Label'])
     batches_per_epoch = rows_trn // bs
     losslists = []
-    dicelist = []
+    # dicelist = []
     vlosslists = []
-    vdicelist = []
+    # vdicelist = []
 
     for epoch in range(ep):
         lr = init_lr * lr_dec
@@ -351,8 +351,8 @@ def train(bs, sample, vasample, ep, ilr):
                 loss = loss_fn(pred_mask, y).cpu() + dice_loss(F.sigmoid(pred_mask), y)
                 losslist.append(loss.data.numpy()[0])
                 loss.backward()
-                dice = 1 - dice_loss(F.sigmoid(pred_mask), y)
-                dicelist.append(dice.data.numpy())
+                # dice = 1 - dice_loss(F.sigmoid(pred_mask), y)
+                # dicelist.append(dice.data.numpy())
                 tr_metric = metric(F.sigmoid(pred_mask), y)
                 tr_metric_list.append(tr_metric)
             # if itr % 10 == 0:
@@ -390,8 +390,8 @@ def train(bs, sample, vasample, ep, ilr):
                 pred_maskv = model(xv) #.cpu()  # .round()
                 vloss = loss_fn(pred_maskv, yv).cpu() + dice_loss(F.sigmoid(pred_maskv), yv)
                 vlosslist.append(vloss.data.numpy()[0])
-                vdice = 1 - dice_loss(F.sigmoid(pred_maskv), yv)
-                vdicelist.append(vdice)
+                # vdice = 1 - dice_loss(F.sigmoid(pred_maskv), yv)
+                # vdicelist.append(vdice)
                 va_metric = metric(F.sigmoid(pred_maskv), yv)
                 va_metric_list.append(va_metric)
 
@@ -402,11 +402,11 @@ def train(bs, sample, vasample, ep, ilr):
         vlossa = np.mean(vlosslist)
         tr_score = np.mean(tr_metric_list)
         va_score = np.mean(va_metric_list)
-        dicescore = np.mean(dicelist)
-        vdicescore = np.mean(vdicelist)
+        # dicescore = np.mean(dicelist)
+        # vdicescore = np.mean(vdicelist)
         print(
-            'Epoch {:>3} |lr {:>1.5f} | Loss {:>1.5f} | VLoss {:>1.5f} | Train Score {:>1.5f} | Val Score {:>1.5f} | Dice Score {:>1.5f} | VDice Score {:>1.5f}'.format(
-                epoch + 1, lr, lossa, vlossa, tr_score, va_score, dicescore, vdicescore))
+            'Epoch {:>3} |lr {:>1.5f} | Loss {:>1.5f} | VLoss {:>1.5f} | Train Score {:>1.5f} | Val Score {:>1.5f} '.format(
+                epoch + 1, lr, lossa, vlossa, tr_score, va_score))
         opt.step()
         opt.zero_grad()
         losslists.append(lossa)
