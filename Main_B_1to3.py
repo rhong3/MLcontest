@@ -322,11 +322,11 @@ def train(bs, sample, vasample, ep, ilr):
                 # print(label_ratio)
                 if label_ratio < 1:
                     add_weight = (trlaa[0,0,:,:] / 255 + 1 / (1 / label_ratio - 1))
-                    add_weight = np.clip(add_weight / add_weight.max() * 255, 1.34, None)
+                    add_weight = np.clip(add_weight / add_weight.max() * 255, 1.5, None)
                     loss_fn = torch.nn.BCEWithLogitsLoss(weight=Cuda(torch.from_numpy(add_weight).type(torch.FloatTensor)))
                 elif label_ratio > 1:
                     add_weight = (trlaa[0,0,:,:] / 255 + 1 / (label_ratio - 1))
-                    add_weight = np.clip(add_weight / add_weight.max() * 255, 1.34, None)
+                    add_weight = np.clip(add_weight / add_weight.max() * 255, 1.5, None)
                     loss_fn = torch.nn.BCEWithLogitsLoss(weight=Cuda(torch.from_numpy(add_weight).type(torch.FloatTensor)))
                 elif label_ratio == 1:
                     add_weight = np.ones([1,1,trlaa.shape[2], trlaa.shape[3]]) * 255
@@ -362,11 +362,11 @@ def train(bs, sample, vasample, ep, ilr):
                 # print(label_ratio)
                 if label_ratio < 1:
                     add_weight = (valaa[0,0,:,:] / 255 + 1 / (1 / label_ratio - 1))
-                    add_weight = np.clip(add_weight / add_weight.max() * 255, 1.34, None)
+                    add_weight = np.clip(add_weight / add_weight.max() * 255, 1.5, None)
                     loss_fn = torch.nn.BCEWithLogitsLoss(weight=Cuda(torch.from_numpy(add_weight).type(torch.FloatTensor)))
                 elif label_ratio > 1:
                     add_weight = (valaa[0,0,:,:] / 255 + 1 / (label_ratio - 1))
-                    add_weight = np.clip(add_weight / add_weight.max() * 255, 1.34, None)
+                    add_weight = np.clip(add_weight / add_weight.max() * 255, 1.5, None)
                     loss_fn = torch.nn.BCEWithLogitsLoss(weight=Cuda(torch.from_numpy(add_weight).type(torch.FloatTensor)))
                 elif label_ratio == 1:
                     add_weight = np.ones([1,1,valaa.shape[2], valaa.shape[3]]) * 255

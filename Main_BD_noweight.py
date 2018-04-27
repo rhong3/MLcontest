@@ -233,6 +233,8 @@ def Cuda(obj):
 
 def losscp (list):
     newlist = np.sort(list)
+    #print('list',list)
+    #print('nlist', newlist)
     if np.array_equal(np.array(list), np.array(newlist)):
         return 1
     else:
@@ -273,6 +275,13 @@ def prob_to_rles(x, cutoff=0.5):
     for i in range(1, lab_img.max() + 1):
         yield rle_encoding(lab_img == i)
 
+
+def dice_loss(input, target):
+    smooth = 1.
+    iflat = input.view(-1).cpu()
+    tflat = target.view(-1).cpu()
+    intersection = (iflat * tflat).sum()
+    return 1.0 - (((2. * intersection + smooth) / (iflat.sum() + tflat.sum() + smooth)))
 
 def metric(y_pred, target):
     pred = Cuda((y_pred.view(-1) > 0.5).type(torch.FloatTensor))
@@ -317,31 +326,31 @@ def train(bs, sample, vasample, ep, ilr):
                 trimm = trim[iit:iit + 1, :, :, :]
                 trlaa = trla[iit:iit + 1, :, :, :]
                 label_ratio = (trlaa>0).sum() / (trlaa.shape[1]*trlaa.shape[2]*trlaa.shape[3] - (trlaa>0).sum())
-                # add_weight = np.ones([1, 1, trlaa.shape[2], trlaa.shape[3]]) * 255 #For no weight only
-                # loss_fn = torch.nn.BCEWithLogitsLoss(weight=Cuda(torch.from_numpy(add_weight).type(torch.FloatTensor))) #For no weight only
+                add_weight = np.ones([1, 1, trlaa.shape[2], trlaa.shape[3]]) * 255 #For no weight only
+                loss_fn = torch.nn.BCEWithLogitsLoss(weight=Cuda(torch.from_numpy(add_weight).type(torch.FloatTensor))) #For no weight only
                 # print(label_ratio)
-                if label_ratio < 1:
-                    add_weight = (trlaa[0,0,:,:] / 255 + 1 / (1 / label_ratio - 1))
-                    add_weight = np.clip(add_weight / add_weight.max() * 255, 1.34, None)
-                    loss_fn = torch.nn.BCEWithLogitsLoss(weight=Cuda(torch.from_numpy(add_weight).type(torch.FloatTensor)))
-                elif label_ratio > 1:
-                    add_weight = (trlaa[0,0,:,:] / 255 + 1 / (label_ratio - 1))
-                    add_weight = np.clip(add_weight / add_weight.max() * 255, 1.34, None)
-                    loss_fn = torch.nn.BCEWithLogitsLoss(weight=Cuda(torch.from_numpy(add_weight).type(torch.FloatTensor)))
-                elif label_ratio == 1:
-                    add_weight = np.ones([1,1,trlaa.shape[2], trlaa.shape[3]]) * 255
-                    loss_fn = torch.nn.BCEWithLogitsLoss(weight=Cuda(torch.from_numpy(add_weight).type(torch.FloatTensor)))
+                # if label_ratio < 1:
+                #     add_weight = (trlaa[0,0,:,:] / 255 + 1 / (1 / label_ratio - 1))
+                #     add_weight = np.clip(add_weight / add_weight.max() * 255, 1.34, None)
+                #     loss_fn = torch.nn.BCEWithLogitsLoss(weight=Cuda(torch.from_numpy(add_weight).type(torch.FloatTensor)))
+                # elif label_ratio > 1:
+                #     add_weight = (trlaa[0,0,:,:] / 255 + 1 / (label_ratio - 1))
+                #     add_weight = np.clip(add_weight / add_weight.max() * 255, 1.34, None)
+                #     loss_fn = torch.nn.BCEWithLogitsLoss(weight=Cuda(torch.from_numpy(add_weight).type(torch.FloatTensor)))
+                # elif label_ratio == 1:
+                #     add_weight = np.ones([1,1,trlaa.shape[2], trlaa.shape[3]]) * 255
+                #     loss_fn = torch.nn.BCEWithLogitsLoss(weight=Cuda(torch.from_numpy(add_weight).type(torch.FloatTensor)))
                 # print(add_weight.max(), add_weight.min())
                 ## (1+x)/x = 1/label_ratio
                 ## x = 1/(1/label_ratio - 1)
                 x = Cuda(Variable(torch.from_numpy(trimm).type(torch.FloatTensor)))
                 y = Cuda(Variable(torch.from_numpy(trlaa / 255).type(torch.FloatTensor)))
                 pred_mask = model(x) #.cpu()  # .round()
-                loss = loss_fn(pred_mask, y).cpu()
+                loss = loss_fn(pred_mask, y).cpu() + dice_loss(F.sigmoid(pred_mask), y)
                 losslist.append(loss.data.numpy()[0])
                 loss.backward()
-                tr_metric = metric(F.sigmoid(pred_mask), y)
-                tr_metric_list.append(tr_metric)
+                tr_metric = 1 - dice_loss(F.sigmoid(pred_mask), y)
+                tr_metric_list.append(tr_metric.data.numpy())
             # if itr % 10 == 0:
                 #print('train', itr, np.mean(tr_metric_list))
                 # elapsed1 = time.time() - start1
@@ -357,28 +366,28 @@ def train(bs, sample, vasample, ep, ilr):
                 vaimm = vaim[iit:iit + 1, :, :, :]
                 valaa = vala[iit:iit + 1, :, :, :]
                 label_ratio = (valaa>0).sum() / (valaa.shape[1]*valaa.shape[2] * valaa.shape[3] - (valaa>0).sum())
-                # add_weight = np.ones([1, 1, valaa.shape[2], valaa.shape[3]]) * 255 #For no weight only
-                # loss_fn = torch.nn.BCEWithLogitsLoss(weight=Cuda(torch.from_numpy(add_weight).type(torch.FloatTensor))) #For no weight only
+                add_weight = np.ones([1, 1, valaa.shape[2], valaa.shape[3]]) * 255 #For no weight only
+                loss_fn = torch.nn.BCEWithLogitsLoss(weight=Cuda(torch.from_numpy(add_weight).type(torch.FloatTensor))) #For no weight only
                 # print(label_ratio)
-                if label_ratio < 1:
-                    add_weight = (valaa[0,0,:,:] / 255 + 1 / (1 / label_ratio - 1))
-                    add_weight = np.clip(add_weight / add_weight.max() * 255, 1.34, None)
-                    loss_fn = torch.nn.BCEWithLogitsLoss(weight=Cuda(torch.from_numpy(add_weight).type(torch.FloatTensor)))
-                elif label_ratio > 1:
-                    add_weight = (valaa[0,0,:,:] / 255 + 1 / (label_ratio - 1))
-                    add_weight = np.clip(add_weight / add_weight.max() * 255, 1.34, None)
-                    loss_fn = torch.nn.BCEWithLogitsLoss(weight=Cuda(torch.from_numpy(add_weight).type(torch.FloatTensor)))
-                elif label_ratio == 1:
-                    add_weight = np.ones([1,1,valaa.shape[2], valaa.shape[3]]) * 255
-                    loss_fn = torch.nn.BCEWithLogitsLoss(weight=Cuda(torch.from_numpy(add_weight).type(torch.FloatTensor)))
+                # if label_ratio < 1:
+                #     add_weight = (valaa[0,0,:,:] / 255 + 1 / (1 / label_ratio - 1))
+                #     add_weight = np.clip(add_weight / add_weight.max() * 255, 1.34, None)
+                #     loss_fn = torch.nn.BCEWithLogitsLoss(weight=Cuda(torch.from_numpy(add_weight).type(torch.FloatTensor)))
+                # elif label_ratio > 1:
+                #     add_weight = (valaa[0,0,:,:] / 255 + 1 / (label_ratio - 1))
+                #     add_weight = np.clip(add_weight / add_weight.max() * 255, 1.34, None)
+                #     loss_fn = torch.nn.BCEWithLogitsLoss(weight=Cuda(torch.from_numpy(add_weight).type(torch.FloatTensor)))
+                # elif label_ratio == 1:
+                #     add_weight = np.ones([1,1,valaa.shape[2], valaa.shape[3]]) * 255
+                #     loss_fn = torch.nn.BCEWithLogitsLoss(weight=Cuda(torch.from_numpy(add_weight).type(torch.FloatTensor)))
                 # print(add_weight.max(), add_weight.min())
                 xv = Cuda(Variable(torch.from_numpy(vaimm).type(torch.FloatTensor)))
                 yv = Cuda(Variable(torch.from_numpy(valaa / 255).type(torch.FloatTensor)))
                 pred_maskv = model(xv) #.cpu()  # .round()
-                vloss = loss_fn(pred_maskv, yv).cpu()
-                va_metric = metric(F.sigmoid(pred_maskv), yv)
-                va_metric_list.append(va_metric)
+                vloss = loss_fn(pred_maskv, yv).cpu() + dice_loss(F.sigmoid(pred_maskv), yv)
                 vlosslist.append(vloss.data.numpy()[0])
+                va_metric = 1 - dice_loss(F.sigmoid(pred_maskv), yv)
+                va_metric_list.append(va_metric.data.numpy())
                 # if itr % 10 == 0:
                 #     print('val', itr, np.mean(va_metric_list))
                 # vloss += va_metric
@@ -413,10 +422,8 @@ def train(bs, sample, vasample, ep, ilr):
             if losscp(losslists[-15:]) or losscp(vlosslists[-15:]):
                 for itr in range(rows_val):
                     vaim = vasample['Image'][itr]
-                    vala = vasample['Label'][itr]
                     for iit in range(1):
                         vaimm = vaim[iit:iit + 1, :, :, :]
-                        valaa = vala[iit:iit + 1, :, :, :]
                         xv = Cuda(Variable(torch.from_numpy(vaimm).type(torch.FloatTensor)))
                         pred_maskv = model(xv)  # .cpu()
                         pred_np = (F.sigmoid(pred_maskv) > 0.5).cpu().data.numpy().astype(np.uint8) * 255
